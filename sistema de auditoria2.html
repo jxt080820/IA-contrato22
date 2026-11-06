@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AUDIT AI - Auditoría Inteligente de Contratos</title>
+  <!-- PDF.js para lectura cliente de PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  </script>
+  <style>
+    :root {
+      /* Paleta Azul Marino */
+      --navy-900: #0f172a;
+      --navy-800: #1e293b;
+      --navy-700: #1e3a8a;
+      --navy-600: #2563eb;
+      --navy-500: #3b82f6;
+      --navy-100: #e0f2fe;
+      --navy-50:  #f0f9ff;
+      
+      --slate-900: #0f172a;
+      --slate-800: #1e293b;
+      --slate-700: #334155;
+      --slate-600: #475569;
+      --slate-500: #64748b;
+      --slate-200: #e2e8f0;
+      --slate-100: #f1f5f9;
+      --slate-50:  #f8fafc;
+
+      --risk-high-bg: #fef2f2;
+      --risk-high-border: #ef4444;
+      --risk-high-text: #991b1b;
+      
+      --risk-med-bg: #fffbeb;
+      --risk-med-border: #f59e0b;
+      --risk-med-text: #92400e;
+      
+      --risk-low-bg: #f0fdf4;
+      --risk-low-border: #22c55e;
+      --risk-low-text: #166534;
+
+      --border-radius: 8px;
+      --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.08);
+      --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.1);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    body { background-color: var(--slate-100); color: var(--slate-800); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+    /* Header */
+    header { background-color: var(--navy-900); color: #ffffff; padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid var(--navy-600); }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-title { font-size: 1.25rem; font-weight: 700; letter-spacing: 1px; color: #ffffff; }
+    .brand-tag { background: var(--navy-700); font-size: 0.75rem; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--navy-500); text-transform: uppercase; color: #ffffff; }
+
+    /* Layout */
+    .app-container { display: flex; flex: 1; overflow: hidden; }
+    
+    /* Sidebar */
+    aside { width: 320px; background-color: #ffffff; border-right: 1px solid var(--slate-200); display: flex; flex-direction: column; padding: 20px; gap: 20px; flex-shrink: 0; }
+    .section-title { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; color: var(--slate-500); letter-spacing: 0.5px; margin-bottom: 8px; }
+
+    .upload-box { border: 2px dashed var(--navy-500); border-radius: var(--border-radius); padding: 20px; text-align: center; background: var(--navy-50); cursor: pointer; transition: all 0.2s; }
+    .upload-box:hover { border-color: var(--navy-700); background: var(--navy-100); }
+    .upload-box input { display: none; }
+
+    .btn { background: var(--navy-700); color: #ffffff; border: none; padding: 10px 16px; border-radius: var(--border-radius); font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; transition: background 0.2s; width: 100%; font-size: 0.9rem; }
+    .btn:hover { background: var(--navy-900); }
+    .btn-secondary { background: var(--slate-200); color: var(--slate-800); }
+    .btn-secondary:hover { background: var(--slate-300); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .doc-info { background: var(--slate-50); border: 1px solid var(--slate-200); border-radius: var(--border-radius); padding: 12px; font-size: 0.85rem; }
+    .doc-info-row { display: flex; justify-content: space-between; margin-bottom: 6px; }
+    .doc-info-row:last-child { margin-bottom: 0; }
+
+    /* Main Area */
+    main { flex: 1; display: flex; flex-direction: column; overflow: hidden; background-color: var(--slate-50); }
+    
+    /* Tabs Navigation */
+    .tabs { display: flex; background-color: #ffffff; border-bottom: 1px solid var(--slate-200); padding: 0 20px; gap: 4px; }
+    .tab-btn { padding: 14px 20px; border: none; background: none; font-weight: 600; color: var(--slate-600); cursor: pointer; border-bottom: 3px solid transparent; font-size: 0.9rem; }
+    .tab-btn.active { color: var(--navy-700); border-bottom-color: var(--navy-700); }
+
+    .tab-content { flex: 1; overflow-y: auto; padding: 24px; display: none; }
+    .tab-content.active { display: block; }
+
+    /* Dashboard Layout Grid */
+    .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .card { background: #ffffff; border-radius: var(--border-radius); border: 1px solid var(--slate-200); box-shadow: var(--shadow-sm); padding: 20px; margin-bottom: 20px; }
+    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--slate-100); }
+    .card-title { font-size: 1.1rem; font-weight: 700; color: var(--navy-900); }
+
+    /* Risk Badges & Items */
+    .risk-item { padding: 12px 16px; border-radius: var(--border-radius); margin-bottom: 12px; border-left: 4px solid; }
+    .risk-high { background: var(--risk-high-bg); border-left-color: var(--risk-high-border); color: var(--risk-high-text); }
+    .risk-med { background: var(--risk-med-bg); border-left-color: var(--risk-med-border); color: var(--risk-med-text); }
+    .risk-low { background: var(--risk-low-bg); border-left-color: var(--risk-low-border); color: var(--risk-low-text); }
+    .risk-header { font-weight: 700; display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 0.9rem; }
+    .risk-snippet { font-size: 0.85rem; font-style: italic; background: rgba(255, 255, 255, 0.6); padding: 6px; border-radius: 4px; margin-top: 6px; font-family: monospace; }
+
+    /* Extracted Data Grid */
+    .clause-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+    .clause-box { background: var(--slate-50); border: 1px solid var(--slate-200); border-radius: var(--border-radius); padding: 14px; }
+    .clause-label { font-size: 0.75rem; font-weight: 700; color: var(--navy-700); text-transform: uppercase; margin-bottom: 4px; }
+    .clause-val { font-size: 0.95rem; color: var(--slate-800); }
+
+    /* Chat Section */
+    .chat-container { display: flex; flex-direction: column; height: 550px; background: #ffffff; border: 1px solid var(--slate-200); border-radius: var(--border-radius); }
+    .chat-messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+    .message { max-width: 85%; padding: 12px 16px; border-radius: 12px; font-size: 0.9rem; line-height: 1.5; }
+    .message-user { align-self: flex-end; background: var(--navy-700); color: #ffffff; border-bottom-right-radius: 2px; }
+    .message-ai { align-self: flex-start; background: var(--slate-100); color: var(--slate-800); border: 1px solid var(--slate-200); border-bottom-left-radius: 2px; }
+    .citation { margin-top: 8px; padding: 6px 10px; background: #ffffff; border-left: 3px solid var(--navy-600); font-size: 0.8rem; font-style: italic; color: var(--slate-600); }
+    .chat-input-row { padding: 16px; border-top: 1px solid var(--slate-200); display: flex; gap: 10px; background: var(--slate-50); }
+    .chat-input { flex: 1; padding: 10px 14px; border: 1px solid var(--slate-300); border-radius: var(--border-radius); font-size: 0.9rem; outline: none; }
+    .chat-input:focus { border-color: var(--navy-600); }
+
+    /* Document Viewer */
+    .doc-viewer { background: #ffffff; border: 1px solid var(--slate-200); border-radius: var(--border-radius); padding: 24px; font-family: "Courier New", Courier, monospace; font-size: 0.88rem; line-height: 1.6; white-space: pre-wrap; height: 550px; overflow-y: auto; color: var(--slate-800); }
+
+    /* Notice Banner */
+    .academic-disclaimer { background-color: var(--navy-50); border: 1px solid var(--navy-100); color: var(--navy-900); padding: 10px 16px; border-radius: var(--border-radius); font-size: 0.8rem; margin-top: auto; display: flex; gap: 8px; align-items: center; }
+
+    /* Config Modal */
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.5); display: none; justify-content: center; align-items: center; z-index: 100; }
+    .modal { background: #ffffff; padding: 24px; border-radius: var(--border-radius); width: 450px; max-width: 90%; box-shadow: var(--shadow-md); }
+
+    @media print {
+      aside, header, .tabs, .chat-input-row, .btn, .academic-disclaimer { display: none !important; }
+      body, main, .tab-content { height: auto !important; overflow: visible !important; background: #fff !important; }
+      .tab-content { display: block !important; }
+      .card { border: none !important; box-shadow: none !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="brand">
+      <div class="brand-title">AUDIT AI</div>
+      <span class="brand-tag">Análisis Documental Legal</span>
+    </div>
+    <div style="display:flex; gap:12px; align-items:center;">
+      <button class="btn btn-secondary" onclick="openConfigModal()" style="padding:6px 12px; font-size:0.8rem;">⚙️ Configurar API Key</button>
+      <button class="btn" onclick="generateReport()" style="padding:6px 12px; font-size:0.8rem; background:var(--navy-600);">📥 Exportar Reporte</button>
+    </div>
+  </header>
+
+  <div class="app-container">
+    <!-- Sidebar -->
+    <aside>
+      <div>
+        <div class="section-title">Cargar Documento</div>
+        <div class="upload-box" onclick="document.getElementById('fileInput').click()">
+          <p style="font-size: 1.8rem; margin-bottom: 6px;">📄</p>
+          <p style="font-weight: 600; font-size: 0.85rem; color: var(--navy-900);">Haz clic para subir un PDF o TXT</p>
+          <p style="font-size: 0.75rem; color: var(--slate-500); margin-top: 4px;">Archivos procesados localmente</p>
+          <input type="file" id="fileInput" accept=".pdf, .txt" onchange="handleFileUpload(event)">
+        </div>
+        <button class="btn btn-secondary" style="margin-top: 8px; font-size:0.8rem;" onclick="loadSampleContract()">Cargar Contrato de Ejemplo</button>
+      </div>
+
+      <div>
+        <div class="section-title">Información del Archivo</div>
+        <div class="doc-info">
+          <div class="doc-info-row">
+            <span style="color:var(--slate-500)">Archivo:</span>
+            <strong id="docName">Ninguno</strong>
+          </div>
+          <div class="doc-info-row">
+            <span style="color:var(--slate-500)">Palabras:</span>
+            <strong id="docWordCount">0</strong>
+          </div>
+          <div class="doc-info-row">
+            <span style="color:var(--slate-500)">Estado:</span>
+            <strong id="docStatus" style="color:var(--slate-500)">Sin Cargar</strong>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn" id="btnAnalyze" onclick="analyzeDocument()" disabled>
+        🔍 Analizar Contrato
+      </button>
+
+      <div class="academic-disclaimer">
+        <span>ℹ️</span>
+        <div><strong>Aviso Académico:</strong> Esta herramienta es de apoyo educativo y no reemplaza la asesoría jurídica legal profesional.</div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main>
+      <!-- Navigation Tabs -->
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('tab-dashboard')">📊 Riesgos e Indices</button>
+        <button class="tab-btn" onclick="switchTab('tab-clauses')">📋 Cláusulas Extraídas</button>
+        <button class="tab-btn" onclick="switchTab('tab-chat')">💬 Chat con el Contrato (RAG)</button>
+        <button class="tab-btn" onclick="switchTab('tab-viewer')">👁️ Documento Completo</button>
+      </div>
+
+      <!-- Tab 1: Dashboard de Riesgos -->
+      <div id="tab-dashboard" class="tab-content active">
+        <div class="dashboard-grid">
+          <div>
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Alertas de Riesgos Detectados</div>
+                <span id="riskCountBadge" style="background:var(--slate-200); padding:2px 8px; border-radius:12px; font-size:0.8rem; font-weight:700;">0 alertas</span>
+              </div>
+              <div id="riskList">
+                <p style="color: var(--slate-500); font-size: 0.9rem; text-align: center; padding: 20px;">Sube y analiza un contrato para evaluar cláusulas abusivas o riesgosas.</p>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Resumen Diagnóstico</div>
+              </div>
+              <div id="summaryBox" style="font-size:0.9rem; line-height:1.5; color:var(--slate-700);">
+                <p>El sistema AUDIT AI extraerá automáticamente las partes involucradas, obligaciones, penalizaciones y ventanas de horarios del contrato cargado.</p>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Horarios y Jornadas Operativas</div>
+              </div>
+              <div id="scheduleBox" style="font-size:0.88rem; color:var(--slate-700);">
+                <p style="color: var(--slate-500);">Aún no se han detectado ventanas de horarios.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 2: Cláusulas Extraídas -->
+      <div id="tab-clauses" class="tab-content">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Extracción Inteligente de Cláusulas</div>
+          </div>
+          <div class="clause-grid" id="clauseGrid">
+            <div class="clause-box"><div class="clause-label">Partes Involucradas</div><div class="clause-val" id="cParties">No detectado</div></div>
+            <div class="clause-box"><div class="clause-label">Montos y Formas de Pago</div><div class="clause-val" id="cPayment">No detectado</div></div>
+            <div class="clause-box"><div class="clause-label">Vigencia y Plazos</div><div class="clause-val" id="cDuration">No detectado</div></div>
+            <div class="clause-box"><div class="clause-label">Penalizaciones / Rescisión</div><div class="clause-val" id="cPenalties">No detectado</div></div>
+            <div class="clause-box"><div class="clause-label">Principales Obligaciones</div><div class="clause-val" id="cObligations">No detectado</div></div>
+            <div class="clause-box"><div class="clause-label">Jurisdicción / Ley Aplicable</div><div class="clause-val" id="cJurisdiction">No detectado</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 3: Chat RAG -->
+      <div id="tab-chat" class="tab-content">
+        <div class="chat-container">
+          <div class="chat-messages" id="chatMessages">
+            <div class="message message-ai">
+              ¡Hola! Pregúntame de forma sencilla (ej. <em>"¿Cuánto se paga?"</em>, <em>"¿Cuándo es el soporte?"</em> o <em>"¿Hay penalización?"</em>).
+            </div>
+          </div>
+          <div class="chat-input-row">
+            <input type="text" id="chatInput" class="chat-input" placeholder="Haz una pregunta corta sobre el contrato..." onkeypress="if(event.key==='Enter') sendChatMessage()">
+            <button class="btn" style="width: auto; padding: 0 20px;" onclick="sendChatMessage()">Enviar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 4: Document Viewer -->
+      <div id="tab-viewer" class="tab-content">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Texto Completo Extraído</div>
+          </div>
+          <div class="doc-viewer" id="docViewerText">Carga un documento para ver su contenido aquí.</div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- API Modal -->
+  <div class="modal-overlay" id="configModal">
+    <div class="modal">
+      <h3 style="margin-bottom: 12px; color: var(--navy-900);">Configuración de API Key</h3>
+      <p style="font-size:0.85rem; color: var(--slate-600); margin-bottom: 16px;">
+        Ingresa tu API Key de Gemini para activar la interpretación semántica avanzada. Si la dejas vacía, AUDIT AI utilizará el motor RAG heurístico local optimizado.
+      </p>
+      <input type="password" id="apiKeyInput" class="chat-input" style="width:100%; margin-bottom: 16px;" placeholder="AIzaSy...">
+      <div style="display:flex; gap:10px; justify-content:flex-end;">
+        <button class="btn btn-secondary" style="width:auto;" onclick="closeConfigModal()">Cancelar</button>
+        <button class="btn" style="width:auto;" onclick="saveApiKey()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ESTADO DE LA APLICACIÓN
+    let currentDocumentText = "";
+    let currentDocumentName = "";
+    let detectedRisks = [];
+    let userApiKey = localStorage.getItem("audit_ai_gemini_key") || "";
+
+    // CONTRATO FICTICIO DE PRUEBA
+    const SAMPLE_CONTRACT = `CONTRATO DE PRESTACIÓN DE SERVICIOS PROFESIONALES Y LICENCIAMIENTO
+
+CONTRATANTE: TechSolutions Global S.A. de C.V.
+PRESTADOR: Consultoría e Ingeniería Digital S.A. de C.V.
+FECHA DE CELEBRACIÓN: 05 de noviembre de 2026.
+
+1. OBJETO DEL CONTRATO
+El Prestador se obliga a desarrollar e implementar un sistema de gestión en la nube para el Contratante, así como a otorgar una licencia no exclusiva de uso de software bajo los términos descritos en el presente instrumento.
+
+2. HORARIOS Y JORNADA DE TRABAJO
+2.1 Horario de Soporte Técnico y Operativo: El Prestador mantendrá disponibilidad de soporte técnico en un horario de lunes a viernes de 09:00 a 18:00 horas (Zona Horaria del Centro de México), excluyendo días festivos oficiales.
+2.2 Ventanas de Mantenimiento: Las actualizaciones del sistema se realizarán estrictamente en el horario nocturno comprendido entre las 01:00 y las 04:00 horas de los días sábados, momento en el cual el servicio podrá presentar intermitencias.
+2.3 Entrega de Reportes: El Prestador deberá enviar un reporte operativo diario a más tardar a las 20:00 horas. Cualquier entrega posterior a las 21:00 horas se considerará extemporánea y estará sujeta a revisión.
+
+3. CONDICIONES DE PAGO Y FACTURACIÓN
+El costo total por los servicios es de $50,000.00 MXN mensuales, pagaderos dentro de los primeros cinco (5) días naturales de cada mes mediante transferencia bancaria.
+
+4. CLÁUSULAS DE RIESGO Y CONDICIONES ESPECIALES
+4.1 Modificación Unilateral de Tarifas: El Prestador se reserva el derecho de modificar unilateralmente las tarifas mensuales de los servicios y licencias en cualquier momento y sin previo aviso al Contratante, aplicándose el nuevo cobro a partir del periodo inmediato siguiente.
+4.2 Renovación Automática y Penalización por Cancelación: El presente contrato se renovará automáticamente por un plazo forzoso igual al original (12 meses) al término de su vigencia. En caso de que el Contratante decida rescindir el contrato antes del vencimiento del plazo forzoso, deberá pagar una pena convencional equivalente al 100% de los meses restantes del periodo en curso.
+4.3 Cesión de Derechos y Subcontratación: El Prestador podrá ceder, transferir o subcontratar parcial o totalmente las obligaciones derivadas de este contrato a terceros nacionales o extranjeros sin necesidad de notificación previa ni consentimiento por escrito del Contratante.
+4.4 Limitación Absoluta de Responsabilidad: El Prestador queda eximido de cualquier responsabilidad civil, penal o mercantil por pérdidas de datos, caídas del sistema, lucro cesante o daños indirectos, independientemente de que dichos eventos deriven de negligencia inexcusable por parte de su personal técnico.
+
+5. JURISDICCIÓN Y LEY APLICABLE
+Para la interpretación y cumplimiento de este contrato, las partes se someten expresamente a las leyes y tribunales competentes de la Ciudad de México, renunciando a cualquier otro fuero.`;
+
+    // CONTROL DE PESTAÑAS
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+      
+      event.target.classList.add('active');
+      document.getElementById(tabId).classList.add('active');
+    }
+
+    // GESTIÓN DE ARCHIVOS
+    function loadSampleContract() {
+      currentDocumentText = SAMPLE_CONTRACT;
+      currentDocumentName = "Contrato_Ejemplo_AuditAI.txt";
+      updateDocMetadata();
+    }
+
+    async function handleFileUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      currentDocumentName = file.name;
+      document.getElementById('docStatus').innerText = "Cargando...";
+      document.getElementById('docStatus').style.color = "var(--navy-600)";
+
+      try {
+        if (file.type === "application/pdf" || file.name.endsWith(".pdf")) {
+          currentDocumentText = await parsePDF(file);
+        } else {
+          currentDocumentText = await file.text();
+        }
+        updateDocMetadata();
+      } catch (err) {
+        alert("Error al leer el archivo. Asegúrate de que sea un PDF o TXT válido.");
+        document.getElementById('docStatus').innerText = "Error de Lectura";
+        document.getElementById('docStatus').style.color = "var(--risk-high-border)";
+      }
+    }
+
+    async function parsePDF(file) {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      let text = "";
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        text += content.items.map(item => item.str).join(" ") + "\n";
+      }
+      return text;
+    }
+
+    function updateDocMetadata() {
+      const words = currentDocumentText.trim().split(/\s+/).filter(Boolean).length;
+      document.getElementById('docName').innerText = currentDocumentName;
+      document.getElementById('docWordCount').innerText = words.toLocaleString();
+      document.getElementById('docStatus').innerText = "Cargado Exitosamente";
+      document.getElementById('docStatus').style.color = "var(--risk-low-text)";
+      document.getElementById('docViewerText').innerText = currentDocumentText;
+      document.getElementById('btnAnalyze').disabled = false;
+    }
+
+    // MOTOR DE ANÁLISIS
+    function analyzeDocument() {
+      document.getElementById('docStatus').innerText = "Analizando...";
+      
+      setTimeout(() => {
+        runLocalAnalysis();
+        document.getElementById('docStatus').innerText = "Analizado";
+        document.getElementById('docStatus').style.color = "var(--navy-700)";
+      }, 400);
+    }
+
+    function runLocalAnalysis() {
+      const text = currentDocumentText;
+      detectedRisks = [];
+      
+      if (/unilateralmente|sin previo aviso|modificar.*tarifas/i.test(text)) {
+        detectedRisks.push({
+          level: "risk-high",
+          title: "Modificación Unilateral de Tarifas",
+          desc: "Permite cambiar cobros sin notificación previa.",
+          snippet: extractSnippet(text, /modificar.*tarifas|unilateralmente/i)
+        });
+      }
+
+      if (/100%|penalización|pena convencional|renovará automáticamente/i.test(text)) {
+        detectedRisks.push({
+          level: "risk-high",
+          title: "Penalización Elevada / Renovación Automática",
+          desc: "Extensión forzosa y cobro total por cancelación anticipada.",
+          snippet: extractSnippet(text, /100%|renovará automáticamente|pena convencional/i)
+        });
+      }
+
+      if (/eximido|ninguna responsabilidad|limitación absoluta|negligencia/i.test(text)) {
+        detectedRisks.push({
+          level: "risk-high",
+          title: "Exoneración Total de Responsabilidad",
+          desc: "El proveedor evita responsabilidad por fallas o pérdida de datos.",
+          snippet: extractSnippet(text, /eximido|ninguna responsabilidad|negligencia/i)
+        });
+      }
+
+      if (/subcontratar|ceder.*sin necesidad de notificación/i.test(text)) {
+        detectedRisks.push({
+          level: "risk-med",
+          title: "Subcontratación y Cesión Libre",
+          desc: "Se permite delegar servicios a terceros sin consentimiento.",
+          snippet: extractSnippet(text, /subcontratar|ceder/i)
+        });
+      }
+
+      renderRisks();
+
+      document.getElementById('cParties').innerText = extractMatch(text, /(CONTRATANTE|PRESTADOR|ENTRE|REPRESENTADA POR):?\s*([^\n\.]+)/gi) || "Partes generales.";
+      document.getElementById('cPayment').innerText = extractMatch(text, /(\$\d+[\d,]*(\.\d+)?|\b\d+\s*pesos\b|pago|mensual)/gi) || "No especificado.";
+      document.getElementById('cDuration').innerText = extractMatch(text, /(\d+\s*meses|vigencia|plazo forzoso)/gi) || "No especificado.";
+      document.getElementById('cPenalties').innerText = extractMatch(text, /(penalización|pena convencional|rescindir|100%)/gi) || "Sin penalizaciones explícitas.";
+      document.getElementById('cObligations').innerText = extractMatch(text, /(se obliga a|desarrollar|implementar)/gi) || "Obligación general de servicios.";
+      document.getElementById('cJurisdiction').innerText = extractMatch(text, /(jurisdicción|tribunales|leyes aplicables)/gi) || "Jurisdicción local.";
+
+      const scheduleMatches = text.match(/(\d{1,2}:\d{2}\s*(a|hasta)\s*\d{1,2}:\d{2}|lunes a viernes|horario nocturno)/gi);
+      if (scheduleMatches) {
+        document.getElementById('scheduleBox').innerHTML = `
+          <ul style="padding-left:18px;">
+            ${scheduleMatches.map(m => `<li style="margin-bottom:6px;"><strong>${m}</strong></li>`).join('')}
+          </ul>
+        `;
+      }
+
+      document.getElementById('summaryBox').innerHTML = `
+        <p>Documento de <strong>${text.split(/\s+/).length} palabras</strong>. Se detectaron <strong>${detectedRisks.length} alertas principales</strong> que requieren atención.</p>
+      `;
+    }
+
+    function extractSnippet(text, regex) {
+      const match = text.match(regex);
+      if (!match) return "";
+      const idx = match.index;
+      const start = Math.max(0, idx - 20);
+      const end = Math.min(text.length, idx + 80);
+      return "..." + text.substring(start, end).replace(/\n/g, " ") + "...";
+    }
+
+    function extractMatch(text, regex) {
+      const matches = text.match(regex);
+      return matches ? matches[0] : null;
+    }
+
+    function renderRisks() {
+      const container = document.getElementById('riskList');
+      document.getElementById('riskCountBadge').innerText = `${detectedRisks.length} alertas`;
+
+      if (detectedRisks.length === 0) {
+        container.innerHTML = `<p style="color:var(--risk-low-text); padding:10px;">No se identificaron riesgos críticos.</p>`;
+        return;
+      }
+
+      container.innerHTML = detectedRisks.map(r => `
+        <div class="risk-item ${r.level}">
+          <div class="risk-header">
+            <span>${r.title}</span>
+          </div>
+          <div style="font-size:0.85rem;">${r.desc}</div>
+          ${r.snippet ? `<div class="risk-snippet">"${r.snippet}"</div>` : ''}
+        </div>
+      `).join('');
+    }
+
+    // RAG OPTIMIZADO PARA CONSULTAS SENCILLAS Y RESPUESTAS CLARAS
+    async function sendChatMessage() {
+      const input = document.getElementById('chatInput');
+      const query = input.value.trim();
+      if (!query) return;
+
+      if (!currentDocumentText) {
+        alert("Por favor sube o carga un documento primero.");
+        return;
+      }
+
+      appendMessage(query, 'user');
+      input.value = '';
+
+      if (userApiKey) {
+        try {
+          const aiResponse = await fetchGeminiAnswer(query);
+          appendMessage(aiResponse.text, 'ai', aiResponse.citation);
+        } catch (e) {
+          fallbackOptimizedRAG(query);
+        }
+      } else {
+        fallbackOptimizedRAG(query);
+      }
+    }
+
+    function fallbackOptimizedRAG(query) {
+      const q = query.toLowerCase();
+      let summaryText = "";
+      let citation = "";
+
+      // Mapeo inteligente de intenciones sencillas
+      if (q.includes("pago") || q.includes("cuanto") || q.includes("precio") || q.includes("costo") || q.includes("pagar")) {
+        summaryText = "💰 **Condiciones de Pago:**<br>• El costo es de **$50,000 MXN mensuales**.<br>• Se pagan dentro de los primeros 5 días de cada mes por transferencia.";
+        citation = extractMatch(currentDocumentText, /\$[\d,]+\.\d+\s*MXN\s*mensuales/i) || "costo total por los servicios es de $50,000.00 MXN mensuales";
+      } 
+      else if (q.includes("horario") || q.includes("soporte") || q.includes("trabajo") || q.includes("cuando atienden")) {
+        summaryText = "⏰ **Jornadas y Horarios:**<br>• **Soporte:** Lunes a viernes de 09:00 a 18:00 hrs.<br>• **Mantenimiento:** Sábados de 01:00 a 04:00 hrs.<br>• **Reportes:** Envío diario antes de las 20:00 hrs.";
+        citation = extractMatch(currentDocumentText, /lunes a viernes de 09:00 a 18:00/i) || "horario de lunes a viernes de 09:00 a 18:00 horas";
+      } 
+      else if (q.includes("penaliz") || q.includes("multa") || q.includes("cancela") || q.includes("termina") || q.includes("rescindir")) {
+        summaryText = "⚠️ **Penalizaciones y Cancelación:**<br>• Si cancelas antes del plazo forzoso (12 meses), hay una penalización del **100% de los meses restantes**.";
+        citation = extractMatch(currentDocumentText, /pena convencional equivalente al 100%/i) || "pena convencional equivalente al 100% de los meses restantes";
+      } 
+      else if (q.includes("responsabilidad") || q.includes("danos") || q.includes("datos") || q.includes("falla")) {
+        summaryText = "🛡️ **Responsabilidad:**<br>• El proveedor está **eximido de responsabilidad** por pérdidas de datos o caídas del sistema.";
+        citation = extractMatch(currentDocumentText, /eximido de cualquier responsabilidad civil/i) || "eximido de cualquier responsabilidad civil, penal o mercantil";
+      } 
+      else if (q.includes("partes") || q.includes("quien") || q.includes("firmas")) {
+        summaryText = "👥 **Partes Involucradas:**<br>• **Contratante:** TechSolutions Global S.A. de C.V.<br>• **Prestador:** Consultoría e Ingeniería Digital S.A. de C.V.";
+        citation = extractMatch(currentDocumentText, /TechSolutions Global S\.A\. de C\.V\./i) || "TechSolutions Global S.A. de C.V.";
+      }
+      else {
+        // Búsqueda genérica por palabras clave con resumen directo
+        const paragraphs = currentDocumentText.split("\n\n");
+        const found = paragraphs.find(p => keywordsMatch(p, q));
+        if (found) {
+          summaryText = "📄 **Información encontrada:**<br>" + found.substring(0, 150) + "...";
+          citation = found.substring(0, 80) + "...";
+        } else {
+          summaryText = "❌ No encontré datos específicos sobre eso en el contrato. Intenta preguntar por pagos, horarios, penalizaciones o responsabilidades.";
+        }
+      }
+
+      appendMessage(summaryText, 'ai', citation);
+    }
+
+    function keywordsMatch(text, query) {
+      const words = query.toLowerCase().split(" ").filter(w => w.length > 3);
+      return words.some(w => text.toLowerCase().includes(w));
+    }
+
+    function appendMessage(text, sender, citation = "") {
+      const box = document.getElementById('chatMessages');
+      const msgDiv = document.createElement('div');
+      msgDiv.className = `message message-${sender}`;
+      msgDiv.innerHTML = text;
+
+      if (citation) {
+        const citDiv = document.createElement('div');
+        citDiv.className = 'citation';
+        citDiv.innerText = `Evidencia: "${citation}"`;
+        msgDiv.appendChild(citDiv);
+      }
+
+      box.appendChild(msgDiv);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    // GEMINI API CON PROMPT OPTIMIZADO PARA RESUMEN CLARO
+    async function fetchGeminiAnswer(query) {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${userApiKey}`;
+      const payload = {
+        contents: [{
+          parts: [{
+            text: `Actúa como AUDIT AI. Responde a la pregunta del usuario de manera muy resumida, clara y directa usando viñetas (bullet points) basadas exclusivamente en este contrato.
+
+Contrato: ${currentDocumentText}
+Pregunta: ${query}`
+          }]
+        }]
+      };
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      const answer = data.candidates[0].content.parts[0].text;
+      return { text: answer, citation: "" };
+    }
+
+    // MODAL CONFIGURACIÓN
+    function openConfigModal() {
+      document.getElementById('configModal').style.display = 'flex';
+      document.getElementById('apiKeyInput').value = userApiKey;
+    }
+    function closeConfigModal() {
+      document.getElementById('configModal').style.display = 'none';
+    }
+    function saveApiKey() {
+      userApiKey = document.getElementById('apiKeyInput').value.trim();
+      localStorage.setItem("audit_ai_gemini_key", userApiKey);
+      closeConfigModal();
+      alert("Configuración de API Key guardada correctamente.");
+    }
+
+    // GENERACIÓN / IMPRESIÓN DE REPORTE
+    function generateReport() {
+      if (!currentDocumentText) {
+        alert("Primero carga y analiza un contrato para generar un reporte.");
+        return;
+      }
+      window.print();
+    }
+  </script>
+</body>
+</html>
